@@ -1,2 +1,1 @@
-# tb_analysis
-Tuberclosis Analysis in Brazil
+Spatial Temporal Tuberclosis Analysis in Brazil Using GAM's
