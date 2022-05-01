@@ -1,0 +1,204 @@
+---
+title: "Quantifying spatio-temporal risk from TB in Brazil"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, collapse=T, autodep=T,
+                      fig.align='center',
+                      dev.args=list(pointsize=9), size ='tiny',
+                      fig.width=4, fig.height=2.5,
+                      message=F, warning=F, autodep=T)
+```
+
+### Introduction
+
+Mycobacterium tuberculosis causes tuberculosis(TB), an infectious disease. Feelings of sickness or weakness, weight loss, fever, and night sweats are all common signs of tuberculosis. Coughing, chest pain, and blood in the cough are all indications of TB lung disease. This study intends to investigate the spatial, temporal and spatial-temporal risk structure of TB cases per unit population in Brazil, looking at the region, illiteracy, sanitation, unemployment, poverty, and population density between 2012 and 2014 to better understand the disease's spread.
+
+The TB data has 1671 observations with no null values, The data has various features i.e. Indigenous(proportion of indigenous population in the region), Illiteracy which measures the literacy level in the people of the region,Urbanization, Density which tells us the average people living in the room, Poverty (measures the poverty level for each region),  Poor Sanitation measuring the sanitation level of the regions, Unemployment, Timeliness that tells us the time taken to diagnose TB and report it to the health system, Year, Population,TB(no of TB cases in the region per year), Region, lon(longitude), lat(latitude).
+
+### Data Analysis
+
+The summary statistics of the TB data(Fig1) of Brazil tells the maximum Indigenous proportion of people is 50.6, highest illiteracy rate out of the 557 regions is 41% with the average mean of 14.8%, urbanization is highest in first quantile and then equally spread across the rest of them with the max of 99.9, the maximum denisty of people living in a room is 1.6 with the mean of 0.6, poverty is highest with 77.8 and the mean value of 44.37, sanitation is bad in most of the region with the max of poor sanitation reaching 58, the maximum unemployment rate is 20 with the mean no of people being unemployed as 6.9 and the time take to report TB to authorities after its diagnosis is more with 96 as the maximum time taken.  
+ 
+On observing the covariates in plot(Fig 2), we do observe the spike in Indigenous population at the begining, less no of people with high illiteracy rate, urbanization getting increased in most of the regions and high density of people around 0.6 living in a room.We also observe the normality in the timeliness. To get more insight into these covariates we plot the correlation chart between these covariates to understand there relationship(Fig 3). The TB cases are increasing with the increase of population in a region. There is high positive correlation in Illiteracy and Poverty as both the factor are linked to each other. Density and urbanization is negatively correlated as the urbanization is increasing the density of people staying in a room is decreasing. As the urbanization is increasing the poverty is decreasing with negative 0.75 correlation.
+
+In plotting some of the covariates on the ggplot we see, poor sanitation has high influence from poverty and urbanization. As the urbanization is increasing the poor sanitation is decreasing which shows the development in the individual household(Fig 4). Poverty is directly linked to the poor sanitaion, poorer household have worst sanitation facility(Fig 5). The decrease in illiteracy in the population is increasing the timeliness or the resources of the people to report the TB cases with the health authorities(Fig 6). With the increase of urbanization the timeliness is also increasing depicting that the means and resources of the regions are increasing(Fig 7). If we observe the histogram of the TB cases we see there is a larger frequency of small no of TB cases. The distribution seems to be of the Poisson distribution. The TB data is also unbounded so we will try to fit the Poisson, Quasipoisson distribution. The frequency of TB cases in Brazil over the period of 2012 to 2014 have increased in 2013 from 2012, then they have decreased in 2014, with the peak in 2013(Fig 8).In each of the 7 regions we see for the region red the TB cases in 2012 were [0,10] which were increased to [1,12] in 2013 and came down to [0,11] in 2014. We can also observe the TB cases per 1000 population in brazil from 2012-2014 in Fig 9.
+
+### Model
+
+We will model rate of occurrence of TB per unit population, by using the Poisson distribution. The mathematical formula is explained below.
+$$\small Y_i \sim Pois(\lambda _i= z_i\rho_i)$$
+$$\small \log(\lambda_i) = \log(z_i) + \log(\rho_i) $$
+$$\small \log(\rho_i) = \beta_0 + f(x_1i) + f(x_2i) + f(x_3i) + f(x_4i) + f(x_5i) + f(x_6i) + f(x_7i) + f(x_8i) + f(lon, lat) + f(lon, lat, x_4i) $$
+$\small \log(z_i)$ is the offset of the population, $\small \beta_0$ is the intercept with f(.) as the smooth functions. The $\small x_1, x_2, x_3, x_4, x_5, x_5, x_6, x_7, x_8$ are the covarites of Indigenous, Illiteracy, Urbanisation, Density, Poverty, Poor_Sanitation, Unemployment and Timeliness respectively. The $\small f(lon,lat, x_4i)$ is the ti() interaction of longitude, latitude and density.
+
+### Experiments
+
+We created a base model with offset and Indigenous, Illiteracy, Urbanisation, Density, Poverty, Poor_Sanitation, Unemployment, Timeliness, as the smooth function of the covarites, with factor term fYear and smooth interaction function of lon, lat. On fitting a Poisson model with the log link and cubic regression spline 'cr' in model1. The initial k of the covariates in smooth function were small which did not result in the significant of these covariates wrt, increased k value to 60 which gave significant p value and difference between k' and edf was also greater than 1(Fig10). In the other model3 added ti() interaction term in longitude, latitude with density and added the factor term fYear using 'by' parameter. The gam.check() resulted in significant for the interaction term added for the model in Fig 11. We also tried changing the bs to cubic spline(model4) but the results were the same as that of model3. To check for the over dispersion in poisson model, we tried modelling the data using quassipoisson model(model5) and negative binomial model(model6) but the covaraites results were not significant Fig12. 
+
+Finally we selected model3(Fig13) with poisson and interaction term with lon, lat with time as our final model. The Normal QQ plot shows the straight line with all the data falling in the line. In the upper end of the line we observe some of the data not in the straight line, residual vs linear predictor the data is randomly scattered around 0. The histogram of the residual show the normal distribution and response vs fitted values shows the data in straight line of 0, which shows our model fits the data well(Fig 14). We tried to calculate the AIC of all these models Fig 15 which shows the model3 has lower AIC of 11926 meaning it is better to add the spatial, temporal interaction in poisson distribution.
+
+```{r}
+# Library
+library(ggplot2)
+library(PerformanceAnalytics)
+library(mgcv)
+library(psych)
+library(funModeling) 
+library(Hmisc)
+
+theme_set(theme_minimal())
+theme_update(plot.title = element_text(hjust = 0.5,size = 14, face = "bold"))
+
+nrow(TBdata)
+head(TBdata,5) 
+names(TBdata)
+str(TBdata)
+is.null(TBdata)
+TBdata$fYear <- as.factor(TBdata$Year)
+TBdata$fRegion <- as.factor(TBdata$Region)
+
+# EDA
+summary(TBdata)
+TB_sub <- subset(TBdata, select = -c(Year, Region, lon, lat, fYear, fRegion))
+eda <- function(my_data)
+{
+  freq(my_data)
+  print(profiling_num(my_data))
+  plot_num(my_data)
+  describe(my_data)
+}
+
+eda(TB_sub)
+chart.Correlation(TB_sub, histogram = TRUE, method = "pearson")
+
+# Multivariate Analysis
+ggplot(TBdata, aes(Urbanisation,Poor_Sanitation))+
+  geom_point(alpha=0.5,color="darkblue")+
+  labs(x = "Urbanization", y = "Poor Sanitation", title="Effect of Urbanization on Poor Sanitation")+
+  geom_smooth(method=lm,se=FALSE,linetype="dashed")
+
+ggplot(TBdata, aes(Poverty,Poor_Sanitation))+
+  geom_point(alpha=0.5,color="darkblue")+
+  labs(x = "Poverty", y = "Poor Sanitation", title="Effect of Poverty on Poor Sanitation")+
+  geom_smooth(method=lm,se=FALSE,linetype="dashed")
+
+ggplot(TBdata, aes(Illiteracy,Timeliness))+
+  geom_point(alpha=0.5, color="darkorchid4")+
+  labs(x = "Illiteracy", y = "Timeliness", title="Effect of Illiteracy on Timeliness")+
+  geom_smooth(method=lm,se=FALSE,linetype="dashed",color="red")
+
+ggplot(TBdata, aes(Urbanisation,Timeliness))+
+  geom_point(alpha=0.5, color="#b9e38d")+
+  labs(x = "Urbanisation", y = "Timeliness", title="Effect of Urbanisation on Timeliness")+
+  geom_smooth(method=lm,se=FALSE,linetype="dashed",color="lightblue")
+
+hist(TB_sub$TB, 
+     main="Histogram of No of TB Cases", xlab='TB', col="#0066CC", breaks=300)
+
+ggplot(TBdata,aes(TB)) +
+  geom_bar(color = "darkorchid4") +
+  facet_wrap( ~ Year ) +
+  labs(title = "TB Cases in Brazil 2012-2014",
+       y = "Frequency",
+       x = "TB Cases") + theme_bw(base_size = 15) 
+
+
+ggplot(data = TBdata, # the input data 
+       aes(x = lon, y = lat, fill = TB/1000, group = Year)) + 
+  geom_polygon(aes(group = Year), colour = "grey60") + 
+  geom_path(colour="black", lwd=0.5) +
+  coord_equal() +  
+  facet_wrap(~ Year) + 
+  scale_fill_gradient2(low = "blue", mid = "grey", high = "red", 
+                       midpoint = 150, name = "TB\n(thousand)") +
+  labs(title = "TB Cases per Thousand Population in Brazil (2012-2014)")+
+  theme(axis.text = element_blank(), 
+        axis.title = element_blank(),
+        axis.ticks = element_blank()) 
+
+x <- c(2012,2013,2014)
+for (val in x){
+  plot.map(TBdata$TB[TBdata$Year==val],n.levels=7,main=paste("TB Counts in Brazil ", val))
+  
+}
+
+## Models ###
+# Base model
+model1 <- gam( TB ~ offset(I(log(Population))) + s(Indigenous, bs="cr", k= 60) + s(Illiteracy, bs="cr", k= 60) + s(Urbanisation, bs="cr", k= 60)+
+                 +s(Density, bs="cr", k= 70) +s(Poverty, bs="cr", k= 80) + s(Poor_Sanitation,bs="cr", k= 80) + s(Unemployment,bs="cs", k= 80)+
+                 s(Timeliness,bs="cs",k=60) + s(lon,lat) + fYear,
+               data = TBdata,
+               family= poisson(link = 'log'))
+
+par(mfrow=c(2,2))
+gam.check(model1, pch=20)
+
+# Interaction term of Urbanization and Poor Sanitation with long, lat
+model2 <- gam( TB ~ offset(I(log(Population))) + s(Indigenous, bs="cr", k= 60) + s(Illiteracy, bs="cr", k= 60) + s(Urbanisation, bs="cr", k= 60)+
+                 + s(Density, bs="cr", k= 70) + s(Poverty, bs="cr", k= 80) + s(Poor_Sanitation,bs="cr", k= 80) + s(Unemployment,bs="cs", k= 80)+
+                 s(Timeliness,bs="cs",k=60) + s(lon,lat) + fYear+ ti(lon, lat, Urbanisation ,bs=c('tp','cr'), k=c(50,30))+ ti(lon, lat, Poor_Sanitation ,bs=c('tp','cr'), k=c(50,30)),
+               data = TBdata,
+               family= poisson(link = 'log'))
+
+par(mfrow=c(2,2))
+gam.check(model2, pch=20)
+summary(model2)
+
+# Interaction term of Density with long, lat
+model3 <- gam( TB ~ offset(I(log(Population))) + s(Indigenous, bs="cr", k= 60) + s(Illiteracy, bs="cr", k= 60) + s(Urbanisation, bs="cr", k= 60)+
+                 + s(Density, bs="cr", k= 70) + s(Poverty, bs="cr", k= 80) + s(Poor_Sanitation,bs="cr", k= 80) + s(Unemployment,bs="cs", k= 80)+
+                 s(Timeliness,bs="cs",k=60) + s(lon,lat) + fYear+ ti(lon, lat,Density, by=fYear,bs=c('tp','cr'), k=c(50,30)),
+                 data = TBdata,
+                 family= poisson(link = 'log'))
+
+par(mfrow=c(2,2))
+gam.check(model3, pch=20)
+summary(model3)
+
+
+model4 <- gam( TB ~ offset(I(log(Population))) + s(Indigenous, bs="cs", k= 60) + s(Illiteracy, bs="cs", k= 60) + s(Urbanisation, bs="cs", k= 60)+
+                 +s(Density, bs="cs", k= 70) +s(Poverty, bs="cs", k= 80) + s(Poor_Sanitation,bs="cs", k= 80) + s(Unemployment,bs="cs", k= 80)+
+                 s(Timeliness,bs="cs",k=60) + s(lon,lat) + fYear+ ti(lon, lat,Density, by=fYear,bs=c('tp','cr'), k=c(50,30)),
+               data = TBdata,
+               family= poisson(link = 'log'))
+
+par(mfrow=c(2,2))
+gam.check(model4, pch=20)
+
+# Quasipoisson
+model5 <- gam( TB ~ offset(I(log(Population))) + s(Indigenous, bs="cr", k= 30) + s(Illiteracy, bs="cr", k= 30) + s(Urbanisation, bs="cr", k= 30)+
+                 +s(Density, bs="cr", k= 30) +s(Poverty, bs="cr", k= 30) + s(Poor_Sanitation,bs="cr", k= 30) + s(Unemployment,bs="cs", k= 30)+
+                 s(Timeliness,bs="cs",k=40) + s(lon,lat) + fYear+ ti(lon, lat,Density, by=fYear,bs=c('tp','cr'), k=c(50,30)),
+               data = TBdata,
+               family= quasipoisson("log"),
+               method = "REML")
+
+par(mfrow=c(2,2))
+gam.check(model5, pch=20)
+
+## Negative Binomial
+model6 <- gam( TB ~ offset(I(log(Population))) + s(Indigenous, bs="cr", k= 30) + s(Illiteracy, bs="cr", k= 30) + s(Urbanisation, bs="cr", k= 30)+
+                 +s(Density, bs="cr", k= 30) +s(Poverty, bs="cr", k= 30) + s(Poor_Sanitation,bs="cr", k= 30) + s(Unemployment,bs="cs", k= 30)+
+                 s(Timeliness,bs="cs",k=40) + s(lon,lat) + fYear+ ti(lon, lat,Density, by=fYear,bs=c('tp','cr'), k=c(50,30)),
+               data = TBdata,
+               family= nb(link="log"),
+               method = "REML")
+
+par(mfrow=c(2,2))
+gam.check(model6, pch=20)
+
+AIC(model1, model3, model4, model5, model6)
+AIC(model2, model3)
+
+# Overdispersion in Poisson model  
+overdispersion = model3$deviance / model3$df.residuals
+overdispersion
+
+plot(model3, shade=TRUE, seWithMean=TRUE, pages=1, all.terms=TRUE,
+     shift = coef(model3)[1], rug=TRUE)
+```
+
